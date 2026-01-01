@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Student Planner Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+</head>
+<body>
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav">
+        <button class="nav-btn active" onclick="showSection('courses')">
+            <i class="fas fa-book"></i>
+            <span>Kuliah</span>
+        </button>
+        <button class="nav-btn" onclick="showSection('finance')">
+            <i class="fas fa-wallet"></i>
+            <span>Keuangan</span>
+        </button>
+        <button class="nav-btn" onclick="showSection('schedule')">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Jadwal</span>
+        </button>
+        <button class="nav-btn" onclick="showStats()">
+            <i class="fas fa-chart-bar"></i>
+            <span>Statistik</span>
+        </button>
+    </nav>
+
+    <!-- Mobile Container -->
+    <div class="mobile-container">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <div class="mobile-header-content">
+                <div class="mobile-logo" onclick="scrollToTop()">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h1>Student Planner</h1>
+                </div>
+                <button class="mobile-menu-btn" onclick="toggleMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <div class="mobile-quick-stats">
+                <div class="quick-stat">
+                    <span class="quick-stat-value" id="statCourses">0</span>
+                    <span class="quick-stat-label">Matkul</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-value" id="statTasks">0/0</span>
+                    <span class="quick-stat-label">Tugas</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-value" id="statBalance">Rp 0</span>
+                    <span class="quick-stat-label">Saldo</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Side Menu -->
+        <div class="side-menu" id="sideMenu">
+            <div class="menu-header">
+                <h3>Menu</h3>
+                <button class="close-menu" onclick="toggleMenu()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="menu-items">
+                <button class="menu-item" onclick="showAddCourseModal()">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Tambah Mata Kuliah</span>
+                </button>
+                <button class="menu-item" onclick="showAddTransactionModal()">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Tambah Transaksi</span>
+                </button>
+                <button class="menu-item" onclick="showUpcomingDeadlines()">
+                    <i class="fas fa-clock"></i>
+                    <span>Deadline Mendatang</span>
+                </button>
+                <button class="menu-item" onclick="exportData()">
+                    <i class="fas fa-download"></i>
+                    <span>Export Data</span>
+                </button>
+                <button class="menu-item" onclick="toggleDarkMode()">
+                    <i class="fas fa-moon"></i>
+                    <span>Mode Gelap</span>
+                </button>
+                <button class="menu-item" onclick="clearData()">
+                    <i class="fas fa-trash"></i>
+                    <span>Hapus Semua</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="mobile-main">
+            <!-- Courses Section -->
+            <section class="mobile-section active" id="coursesSection">
+                <div class="mobile-section-header">
+                    <h2><i class="fas fa-book"></i> Mata Kuliah & Tugas</h2>
+                    <button class="mobile-add-btn" onclick="showAddCourseModal()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <!-- Upcoming Deadlines -->
+                <div class="upcoming-deadlines" id="upcomingDeadlines">
+                    <h3><i class="fas fa-clock"></i> Deadline Mendatang</h3>
+                    <div class="deadlines-list" id="deadlinesList"></div>
+                </div>
+
+                <!-- Courses List -->
+                <div id="mobileCourseList" class="mobile-courses-list"></div>
+            </section>
+
+            <!-- Finance Section -->
+            <section class="mobile-section" id="financeSection">
+                <div class="mobile-section-header">
+                    <h2><i class="fas fa-wallet"></i> Buku Kas</h2>
+                    <button class="mobile-add-btn" onclick="showAddTransactionModal()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <!-- Transaction Summary -->
+                <div class="mobile-summary-cards">
+                    <div class="mobile-summary-card income">
+                        <i class="fas fa-arrow-down"></i>
+                        <div class="mobile-summary-content">
+                            <span>Masuk</span>
+                            <strong id="mobileTotalIn">Rp 0</strong>
+                        </div>
+                    </div>
+                    <div class="mobile-summary-card expense">
+                        <i class="fas fa-arrow-up"></i>
+                        <div class="mobile-summary-content">
+                            <span>Keluar</span>
+                            <strong id="mobileTotalOut">Rp 0</strong>
+                        </div>
+                    </div>
+                    <div class="mobile-summary-card balance">
+                        <i class="fas fa-wallet"></i>
+                        <div class="mobile-summary-content">
+                            <span>Saldo</span>
+                            <strong id="mobileBalanceSummary">Rp 0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction History -->
+                <div class="mobile-transaction-history">
+                    <h3><i class="fas fa-history"></i> Riwayat Transaksi</h3>
+                    <div id="mobileCashList" class="mobile-cash-list"></div>
+                </div>
+            </section>
+
+            <!-- Schedule Section -->
+            <section class="mobile-section" id="scheduleSection">
+                <div class="mobile-section-header">
+                    <h2><i class="fas fa-calendar-alt"></i> Jadwal Mingguan</h2>
+                    <div class="schedule-nav">
+                        <button class="schedule-nav-btn" onclick="changeWeek(-1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h3 id="weekRange">Minggu Ini</h3>
+                        <button class="schedule-nav-btn" onclick="changeWeek(1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="schedule-container">
+                    <div class="schedule-grid" id="scheduleGrid">
+                        <!-- Schedule akan di-generate oleh JavaScript -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button class="mobile-fab" onclick="quickAction()">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Add Course Modal -->
+    <div class="modal-overlay" id="addCourseModal">
+        <div class="modal mobile-modal">
+            <div class="modal-header">
+                <h3>Tambah Mata Kuliah</h3>
+                <button class="modal-close" onclick="hideModal('addCourseModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label><i class="fas fa-book"></i> Nama Mata Kuliah</label>
+                    <input type="text" id="courseName" placeholder="Contoh: Matematika Diskrit" class="modal-input">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-clock"></i> Hari</label>
+                        <select id="courseDay" class="modal-input">
+                            <option value="">Pilih Hari</option>
+                            <option value="senin">Senin</option>
+                            <option value="selasa">Selasa</option>
+                            <option value="rabu">Rabu</option>
+                            <option value="kamis">Kamis</option>
+                            <option value="jumat">Jumat</option>
+                            <option value="sabtu">Sabtu</option>
+                            <option value="minggu">Minggu</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="far fa-clock"></i> Jam Mulai</label>
+                        <input type="time" id="courseStartTime" class="modal-input">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="far fa-clock"></i> Jam Selesai</label>
+                        <input type="time" id="courseEndTime" class="modal-input">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-door-open"></i> Ruangan</label>
+                        <input type="text" id="courseRoom" placeholder="Contoh: A301" class="modal-input">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-sticky-note"></i> Catatan (Opsional)</label>
+                    <textarea id="courseNote" placeholder="Tambahkan catatan..." class="modal-input textarea"></textarea>
+                </div>
+                
+                <button class="modal-save-btn" onclick="saveCourse()">
+                    <i class="fas fa-save"></i> Simpan Mata Kuliah
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal-overlay" id="addTaskModal">
+        <div class="modal mobile-modal">
+            <div class="modal-header">
+                <h3>Tambah Tugas</h3>
+                <button class="modal-close" onclick="hideModal('addTaskModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="taskCourseIndex">
+                
+                <div class="form-group">
+                    <label><i class="fas fa-tasks"></i> Deskripsi Tugas</label>
+                    <input type="text" id="taskDescription" placeholder="Contoh: Kerjakan soal latihan bab 3" class="modal-input">
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-day"></i> Deadline</label>
+                    <input type="datetime-local" id="taskDeadline" class="modal-input">
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-exclamation-circle"></i> Prioritas</label>
+                    <div class="priority-select">
+                        <button class="priority-btn" data-priority="low" onclick="selectPriority(this, 'low')">
+                            <i class="fas fa-arrow-down"></i> Rendah
+                        </button>
+                        <button class="priority-btn active" data-priority="medium" onclick="selectPriority(this, 'medium')">
+                            <i class="fas fa-minus"></i> Sedang
+                        </button>
+                        <button class="priority-btn" data-priority="high" onclick="selectPriority(this, 'high')">
+                            <i class="fas fa-arrow-up"></i> Tinggi
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-sticky-note"></i> Catatan Tambahan (Opsional)</label>
+                    <textarea id="taskNote" placeholder="Tambahkan detail tugas..." class="modal-input textarea"></textarea>
+                </div>
+                
+                <button class="modal-save-btn" onclick="saveTask()">
+                    <i class="fas fa-check"></i> Simpan Tugas
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Transaction Modal -->
+    <div class="modal-overlay" id="addTransactionModal">
+        <div class="modal mobile-modal">
+            <div class="modal-header">
+                <h3>Tambah Transaksi</h3>
+                <button class="modal-close" onclick="hideModal('addTransactionModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label><i class="fas fa-calendar"></i> Tanggal</label>
+                    <input type="date" id="modalCashDate" class="modal-input">
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-align-left"></i> Keterangan</label>
+                    <input type="text" id="modalCashDesc" placeholder="Uang saku, makanan, transport..." class="modal-input">
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-money-bill"></i> Nominal (Rp)</label>
+                    <input type="number" id="modalCashAmount" placeholder="0" class="modal-input">
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-exchange-alt"></i> Jenis</label>
+                    <div class="type-select">
+                        <button class="type-btn active" data-type="masuk" onclick="selectType(this, 'masuk')">
+                            <i class="fas fa-arrow-down"></i> Pemasukan
+                        </button>
+                        <button class="type-btn" data-type="keluar" onclick="selectType(this, 'keluar')">
+                            <i class="fas fa-arrow-up"></i> Pengeluaran
+                        </button>
+                    </div>
+                </div>
+                
+                <button class="modal-save-btn" onclick="saveTransaction()">
+                    <i class="fas fa-check"></i> Simpan Transaksi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div class="modal-overlay" id="statsModal">
+        <div class="modal mobile-modal">
+            <div class="modal-header">
+                <h3>Statistik</h3>
+                <button class="modal-close" onclick="hideModal('statsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-book-open"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalCoursesStat">0</span>
+                            <span class="stat-label">Mata Kuliah</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-tasks"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalTasksStat">0</span>
+                            <span class="stat-label">Total Tugas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-check-circle"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="completedTasksStat">0</span>
+                            <span class="stat-label">Tugas Selesai</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-clock"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="upcomingDeadlinesStat">0</span>
+                            <span class="stat-label">Deadline</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-wallet"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalBalanceStat">Rp 0</span>
+                            <span class="stat-label">Saldo</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalTransactionsStat">0</span>
+                            <span class="stat-label">Transaksi</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
