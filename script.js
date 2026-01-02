@@ -1,9 +1,12 @@
 // ===== DATA & STATE MANAGEMENT =====
 let courses = JSON.parse(localStorage.getItem("courses")) || [];
 let cashData = JSON.parse(localStorage.getItem("cashData")) || [];
+let todos = JSON.parse(localStorage.getItem("todos")) || [];
 let currentWeekOffset = 0;
 let currentTaskPriority = "medium";
 let currentTransactionType = "masuk";
+let currentTodoPriority = "medium";
+let currentTodoDate = new Date().toISOString().split('T')[0];
 
 // Constants
 const days = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
@@ -28,11 +31,13 @@ function init() {
     // Set default values
     document.getElementById('modalCashDate').value = today;
     document.getElementById('taskDeadline').value = tomorrowStr;
+    document.getElementById('todoDate').value = today;
     
     // Load and render data
     renderCourses();
     renderCash();
     renderSchedule();
+    renderTodos();
     updateQuickStats();
     renderUpcomingDeadlines();
     
@@ -69,6 +74,11 @@ function showSection(section) {
     
     // Close menu if open
     toggleMenu(false);
+    
+    // If showing todo section, update date display
+    if (section === 'todo') {
+        updateTodoDateDisplay();
+    }
 }
 
 function toggleMenu(forceClose = null) {
@@ -234,6 +244,7 @@ function saveCourse() {
 
     saveData();
     renderCourses();
+    renderSchedule();
     hideModal('addCourseModal');
     showNotification('Mata kuliah berhasil ditambahkan!', 'success');
 }
@@ -243,6 +254,7 @@ function deleteCourse(index) {
         courses.splice(index, 1);
         saveData();
         renderCourses();
+        renderSchedule();
         showNotification('Mata kuliah berhasil dihapus', 'success');
     }
 }
@@ -590,6 +602,327 @@ function showUpcomingDeadlines() {
     }, 100);
 }
 
+// ===== TODO FUNCTIONS =====
+function renderTodos() {
+    const container = document.getElementById('todoList');
+    
+    // Get todos for current date
+    const dateTodos = todos.filter(todo => todo.date === currentTodoDate);
+    
+    if (dateTodos.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state-mobile">
+                <i class="fas fa-check-circle"></i>
+                <h3>Tidak ada tugas untuk hari ini</h3>
+                <p>Tambahkan tugas pertama Anda untuk memulai!</p>
+                <button class="btn-primary" onclick="showAddTodoModal()">
+                    <i class="fas fa-plus"></i> Tambah To-Do
+                </button>
+            </div>
+        `;
+        updateTodoSummary();
+        return;
+    }
+    
+    // Sort by priority (high first) then by time
+    const sortedTodos = [...dateTodos].sort((a, b) => {
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        if (priorityOrder[b.priority] !== priorityOrder[a.priority]) {
+            return priorityOrder[b.priority] - priorityOrder[a.priority];
+        }
+        if (a.time && b.time) {
+            return a.time.localeCompare(b.time);
+        }
+        return 0;
+    });
+    
+    container.innerHTML = sortedTodos.map((todo, index) => {
+        const originalIndex = todos.findIndex(t => t.id === todo.id);
+        
+        return `
+            <div class="todo-item ${todo.priority}-priority ${todo.completed ? 'completed' : ''}" 
+                 onclick="toggleTodo(${originalIndex})">
+                <div class="todo-checkbox ${todo.completed ? 'checked' : ''}"></div>
+                <div class="todo-content">
+                    <div class="todo-description ${todo.completed ? 'completed' : ''}">
+                        ${todo.description}
+                    </div>
+                    ${todo.note ? `<div class="todo-note">${todo.note}</div>` : ''}
+                    <div class="todo-meta">
+                        ${todo.time ? `
+                            <div class="todo-time">
+                                <i class="far fa-clock"></i>
+                                ${formatTime(todo.time)}
+                            </div>
+                        ` : ''}
+                        <span class="priority-badge priority-${todo.priority}">
+                            ${todo.priority}
+                        </span>
+                    </div>
+                </div>
+                <div class="todo-actions">
+                    <button class="todo-action-btn" onclick="editTodo(${originalIndex})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="todo-action-btn delete" onclick="deleteTodo(${originalIndex})" title="Hapus">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    updateTodoSummary();
+}
+
+function showAddTodoModal() {
+    // Reset form
+    document.getElementById('todoDescription').value = '';
+    document.getElementById('todoDate').value = currentTodoDate;
+    document.getElementById('todoTime').value = '';
+    document.getElementById('todoNote').value = '';
+    
+    // Reset priority selection
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector('.priority-btn[data-priority="medium"]').classList.add('active');
+    currentTodoPriority = 'medium';
+    
+    showModal('addTodoModal');
+}
+
+function selectTodoPriority(button, priority) {
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    button.classList.add('active');
+    currentTodoPriority = priority;
+}
+
+function saveTodo() {
+    const description = document.getElementById('todoDescription').value.trim();
+    const date = document.getElementById('todoDate').value;
+    const time = document.getElementById('todoTime').value;
+    const note = document.getElementById('todoNote').value.trim();
+
+    if (!description) {
+        showNotification('Deskripsi tugas wajib diisi!', 'warning');
+        return;
+    }
+
+    if (!date) {
+        showNotification('Tanggal wajib diisi!', 'warning');
+        return;
+    }
+
+    todos.push({
+        id: Date.now(),
+        description,
+        date,
+        time: time || null,
+        priority: currentTodoPriority,
+        note: note || '',
+        completed: false,
+        createdAt: new Date().toISOString()
+    });
+
+    saveData();
+    
+    // If date is current todo date, update display
+    if (date === currentTodoDate) {
+        renderTodos();
+    }
+    
+    hideModal('addTodoModal');
+    showNotification('To-Do berhasil ditambahkan!', 'success');
+}
+
+function toggleTodo(index) {
+    todos[index].completed = !todos[index].completed;
+    
+    // If todo is for current date, update display
+    if (todos[index].date === currentTodoDate) {
+        saveData();
+        renderTodos();
+        
+        if (todos[index].completed) {
+            showNotification('🎉 To-Do berhasil diselesaikan!', 'success');
+        }
+    } else {
+        saveData();
+    }
+    
+    updateQuickStats();
+}
+
+function editTodo(index) {
+    const todo = todos[index];
+    
+    // Set form values
+    document.getElementById('todoDescription').value = todo.description;
+    document.getElementById('todoDate').value = todo.date;
+    document.getElementById('todoTime').value = todo.time || '';
+    document.getElementById('todoNote').value = todo.note || '';
+    
+    // Set priority
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.priority === todo.priority) {
+            btn.classList.add('active');
+        }
+    });
+    currentTodoPriority = todo.priority;
+    
+    // Show modal with update button
+    const modal = document.getElementById('addTodoModal');
+    const saveBtn = modal.querySelector('.modal-save-btn');
+    saveBtn.innerHTML = '<i class="fas fa-save"></i> Update To-Do';
+    saveBtn.onclick = function() { updateTodo(index); };
+    
+    showModal('addTodoModal');
+}
+
+function updateTodo(index) {
+    const description = document.getElementById('todoDescription').value.trim();
+    const date = document.getElementById('todoDate').value;
+    const time = document.getElementById('todoTime').value;
+    const note = document.getElementById('todoNote').value.trim();
+
+    if (!description) {
+        showNotification('Deskripsi tugas wajib diisi!', 'warning');
+        return;
+    }
+
+    if (!date) {
+        showNotification('Tanggal wajib diisi!', 'warning');
+        return;
+    }
+
+    todos[index] = {
+        ...todos[index],
+        description,
+        date,
+        time: time || null,
+        priority: currentTodoPriority,
+        note: note || ''
+    };
+
+    saveData();
+    
+    // If date changed from current todo date, update display
+    if (date === currentTodoDate || todos[index].date === currentTodoDate) {
+        renderTodos();
+    }
+    
+    hideModal('addTodoModal');
+    
+    // Reset save button
+    const modal = document.getElementById('addTodoModal');
+    const saveBtn = modal.querySelector('.modal-save-btn');
+    saveBtn.innerHTML = '<i class="fas fa-check"></i> Simpan To-Do';
+    saveBtn.onclick = saveTodo;
+    
+    showNotification('To-Do berhasil diupdate!', 'success');
+}
+
+function deleteTodo(index) {
+    if (confirm('Hapus to-do ini?')) {
+        const todo = todos[index];
+        todos.splice(index, 1);
+        saveData();
+        
+        // If todo was for current date, update display
+        if (todo.date === currentTodoDate) {
+            renderTodos();
+        }
+        
+        showNotification('To-Do berhasil dihapus', 'success');
+    }
+}
+
+function changeTodoDate(direction) {
+    const current = new Date(currentTodoDate);
+    current.setDate(current.getDate() + direction);
+    currentTodoDate = current.toISOString().split('T')[0];
+    updateTodoDateDisplay();
+    renderTodos();
+}
+
+function showTodoDatePicker() {
+    document.getElementById('todoDatePicker').value = currentTodoDate;
+    document.getElementById('todoDatePicker').showPicker();
+}
+
+function changeTodoDateByPicker() {
+    const datePicker = document.getElementById('todoDatePicker');
+    if (datePicker.value) {
+        currentTodoDate = datePicker.value;
+        updateTodoDateDisplay();
+        renderTodos();
+    }
+}
+
+function updateTodoDateDisplay() {
+    const display = document.getElementById('todoDateDisplay');
+    const date = new Date(currentTodoDate);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+        display.textContent = 'Hari Ini';
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+        display.textContent = 'Besok';
+    } else {
+        display.textContent = formatDate(currentTodoDate);
+    }
+}
+
+function updateTodoSummary() {
+    const dateTodos = todos.filter(todo => todo.date === currentTodoDate);
+    const totalTodos = dateTodos.length;
+    const completedTodos = dateTodos.filter(todo => todo.completed).length;
+    const remainingTodos = totalTodos - completedTodos;
+    
+    document.getElementById('totalTodos').textContent = totalTodos;
+    document.getElementById('completedTodos').textContent = completedTodos;
+    document.getElementById('remainingTodos').textContent = remainingTodos;
+}
+
+function addQuickTodo() {
+    const input = document.getElementById('quickTodoInput');
+    const description = input.value.trim();
+    
+    if (!description) {
+        showNotification('Masukkan deskripsi tugas!', 'warning');
+        return;
+    }
+    
+    todos.push({
+        id: Date.now(),
+        description,
+        date: currentTodoDate,
+        time: null,
+        priority: 'medium',
+        note: '',
+        completed: false,
+        createdAt: new Date().toISOString()
+    });
+    
+    saveData();
+    renderTodos();
+    input.value = '';
+    showNotification('To-Do cepat berhasil ditambahkan!', 'success');
+}
+
+function handleQuickTodoEnter(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        addQuickTodo();
+    }
+}
+
 // ===== STATS FUNCTIONS =====
 function showStats() {
     // Calculate statistics
@@ -616,6 +949,10 @@ function showStats() {
     const balance = totalIn - totalOut;
     const totalTransactions = cashData.length;
     
+    // Calculate todo stats
+    const totalTodosStat = todos.length;
+    const completedTodosStat = todos.filter(todo => todo.completed).length;
+    
     // Update stat display
     document.getElementById('totalCoursesStat').textContent = totalCourses;
     document.getElementById('totalTasksStat').textContent = totalTasks;
@@ -623,6 +960,8 @@ function showStats() {
     document.getElementById('upcomingDeadlinesStat').textContent = upcomingDeadlines;
     document.getElementById('totalBalanceStat').textContent = `Rp ${balance.toLocaleString()}`;
     document.getElementById('totalTransactionsStat').textContent = totalTransactions;
+    document.getElementById('totalTodosStat').textContent = totalTodosStat;
+    document.getElementById('completedTodosStat').textContent = completedTodosStat;
     
     showModal('statsModal');
 }
@@ -640,10 +979,17 @@ function updateQuickStats() {
         .reduce((sum, item) => sum + item.amount, 0);
     const balance = totalIn - totalOut;
     
+    // Calculate todo stats for today
+    const today = new Date().toISOString().split('T')[0];
+    const todayTodos = todos.filter(todo => todo.date === today);
+    const totalTodayTodos = todayTodos.length;
+    const completedTodayTodos = todayTodos.filter(todo => todo.completed).length;
+    
     // Update header stats
     document.getElementById('statCourses').textContent = totalCourses;
     document.getElementById('statTasks').textContent = `${completedTasks}/${totalTasks}`;
     document.getElementById('statBalance').textContent = `Rp ${balance.toLocaleString()}`;
+    document.getElementById('statTodos').textContent = `${completedTodayTodos}/${totalTodayTodos}`;
 }
 
 // ===== UTILITY FUNCTIONS =====
@@ -656,9 +1002,9 @@ function formatTime(timeString) {
 function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('id-ID', {
-        weekday: 'short',
+        weekday: 'long',
         day: 'numeric',
-        month: 'short'
+        month: 'long'
     });
 }
 
@@ -718,6 +1064,7 @@ function hideModal(modalId) {
 function saveData() {
     localStorage.setItem('courses', JSON.stringify(courses));
     localStorage.setItem('cashData', JSON.stringify(cashData));
+    localStorage.setItem('todos', JSON.stringify(todos));
     updateQuickStats();
 }
 
@@ -725,8 +1072,9 @@ function exportData() {
     const data = {
         courses: courses,
         cashData: cashData,
+        todos: todos,
         exportedAt: new Date().toISOString(),
-        version: '1.0'
+        version: '2.0'
     };
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -744,13 +1092,15 @@ function exportData() {
 }
 
 function clearData() {
-    if (confirm('HAPUS SEMUA DATA?\n\nSemua mata kuliah, tugas, dan transaksi akan dihapus.\nAksi ini tidak dapat dibatalkan!')) {
+    if (confirm('HAPUS SEMUA DATA?\n\nSemua mata kuliah, tugas, transaksi, dan to-do akan dihapus.\nAksi ini tidak dapat dibatalkan!')) {
         courses = [];
         cashData = [];
+        todos = [];
         saveData();
         renderCourses();
         renderCash();
         renderSchedule();
+        renderTodos();
         showNotification('Semua data telah dihapus', 'warning');
         toggleMenu(false);
     }
@@ -800,6 +1150,8 @@ function quickAction() {
         showAddTransactionModal();
     } else if (activeSection === 'scheduleSection') {
         showAddCourseModal();
+    } else if (activeSection === 'todoSection') {
+        showAddTodoModal();
     }
 }
 
@@ -807,7 +1159,7 @@ function quickAction() {
 function setupEventListeners() {
     // Close modals when clicking outside
     document.addEventListener('click', function(event) {
-        const modals = ['addCourseModal', 'addTaskModal', 'addTransactionModal', 'statsModal'];
+        const modals = ['addCourseModal', 'addTaskModal', 'addTransactionModal', 'addTodoModal', 'statsModal'];
         modals.forEach(modalId => {
             const modal = document.getElementById(modalId);
             if (modal && modal.classList.contains('active') && event.target === modal) {
@@ -836,6 +1188,7 @@ function setupEventListeners() {
             hideModal('addCourseModal');
             hideModal('addTaskModal');
             hideModal('addTransactionModal');
+            hideModal('addTodoModal');
             hideModal('statsModal');
             toggleMenu(false);
         }
